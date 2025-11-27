@@ -7,7 +7,7 @@ st.title("AI4I Machine Failure Prediction App")
 # Load model
 model = joblib.load("best_model_compressed.pkl")
 
-# The exact feature columns your model expects
+# Columns the model was trained on
 EXPECTED_COLUMNS = [
     "Air temperature [K]",
     "Process temperature [K]",
@@ -20,21 +20,19 @@ EXPECTED_COLUMNS = [
 ]
 
 def preprocess(df):
-    # Drop irrelevant columns if they exist
+    # Drop irrelevant columns
     cols_to_drop = ["UDI", "Product ID", "Machine failure", "TWF", "HDF", "PWF", "OSF", "RNF"]
-    for col in cols_to_drop:
-        if col in df.columns:
-            df = df.drop(col, axis=1)
+    df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors="ignore")
 
-    # One-hot encode "Type"
+    # One-hot encode Type
     df = pd.get_dummies(df, columns=["Type"], drop_first=False)
 
-    # Add missing dummy columns if needed
+    # Ensure all expected dummy columns exist
     for col in ["Type_H", "Type_L", "Type_M"]:
         if col not in df.columns:
             df[col] = 0
 
-    # Ensure correct column order
+    # Keep only expected columns
     df = df[EXPECTED_COLUMNS]
 
     return df
@@ -48,7 +46,7 @@ if uploaded_file is not None:
     st.subheader("Uploaded Data Preview")
     st.write(df_raw.head())
 
-    # Preprocess
+    # Process the raw data to match model training format
     df_ready = preprocess(df_raw)
 
     # Predict
