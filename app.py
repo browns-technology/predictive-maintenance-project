@@ -1,38 +1,49 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import numpy as np
 
 st.title("AI4I Machine Failure Prediction App")
 
-# Load model
+# Load trained model
 model = joblib.load("best_model_compressed.pkl")
 
-# Columns the model was trained on
+# Exact feature order expected by the model
 EXPECTED_COLUMNS = [
     "Air temperature [K]",
     "Process temperature [K]",
     "Rotational speed [rpm]",
     "Torque [Nm]",
     "Tool wear [min]",
-    "Type_H",
     "Type_L",
-    "Type_M"
+    "Type_M",
+    "Temp_diff",
+    "RPM_norm",
+    "Torque_per_wear"
 ]
 
 def preprocess(df):
-    # Drop irrelevant columns
-    cols_to_drop = ["UDI", "Product ID", "Machine failure", "TWF", "HDF", "PWF", "OSF", "RNF"]
-    df = df.drop(columns=[c for c in cols_to_drop if c in df.columns], errors="ignore")
+    # Drop columns not used
+    drop_cols = ["UDI", "Product ID", "Machine failure", "TWF", "HDF", "PWF", "OSF", "RNF"]
+    for c in drop_cols:
+        if c in df.columns:
+            df = df.drop(c, axis=1)
 
-    # One-hot encode Type
+    # Handle Type one-hot encoding
     df = pd.get_dummies(df, columns=["Type"], drop_first=False)
 
-    # Ensure all expected dummy columns exist
-    for col in ["Type_H", "Type_L", "Type_M"]:
-        if col not in df.columns:
-            df[col] = 0
+    # Ensure dummy columns exist
+    if "Type_L" not in df.columns:
+        df["Type_L"] = 0
+    if "Type_M" not in df.columns:
+        df["Type_M"] = 0
 
-    # Keep only expected columns
+    # Create engineered features
+    df["Temp_diff"] = df["Process temperature [K]"] - df["Air temperature [K]"]
+    df["RPM_norm"] = df["Rotational speed [rpm]"] / df["Rotational speed [rpm]"].max()
+    df["Torque_per_wear"] = df["Torque [Nm]"] / (df["Tool wear [min]"] + 1)
+
+    # Keep only expected columns and ensure correct order
     df = df[EXPECTED_COLUMNS]
 
     return df
@@ -46,7 +57,7 @@ if uploaded_file is not None:
     st.subheader("Uploaded Data Preview")
     st.write(df_raw.head())
 
-    # Process the raw data to match model training format
+    # Preprocess input CSV to match training data
     df_ready = preprocess(df_raw)
 
     # Predict
