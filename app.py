@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 # Page config
 st.set_page_config(page_title="AI4I Machine Failure Prediction", page_icon="⚙️", layout="wide")
 
-# Global CSS theme (dark background + neon accents + animated sidebar icons)
+# Global CSS theme
 st.markdown("""
     <style>
     body, .stApp {
@@ -46,7 +46,6 @@ st.markdown("""
         color: #9b59b6;
         font-weight: bold;
     }
-    /* Sidebar styling */
     [data-testid="stSidebar"] {
         background-color: #111111;
         border-right: 2px solid #3498db;
@@ -64,7 +63,6 @@ st.markdown("""
     [data-testid="stFileUploader"] div {
         color: #00ffcc !important;
     }
-    /* Animated gear icon */
     .gear {
         width: 40px;
         height: 40px;
@@ -75,7 +73,6 @@ st.markdown("""
     @keyframes spin {
         100% { transform: rotate(360deg); }
     }
-    /* Pulsing spark icon */
     .spark {
         width: 20px;
         height: 20px;
@@ -93,7 +90,7 @@ st.markdown("""
 
 st.title("AI4I Machine Failure Prediction Dashboard ⚡")
 
-# Sidebar content with animated icons
+# Sidebar
 st.sidebar.header("⚙️ Control Panel")
 st.sidebar.markdown("""
 <svg class="gear" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -106,11 +103,12 @@ st.sidebar.markdown("""
 
 st.sidebar.markdown("Upload your dataset and explore machine analytics in neon style.")
 st.sidebar.markdown("---")
+
 uploaded_file = st.sidebar.file_uploader("📂 Upload a CSV file", type=["csv"])
 st.sidebar.markdown("---")
 st.sidebar.success("Theme: Neon Green + Purple + Blue")
 
-# Load trained model
+# Load MODEL
 model = joblib.load("best_model_compressed.pkl")
 
 EXPECTED_COLUMNS = [
@@ -133,6 +131,7 @@ def preprocess(df):
             df = df.drop(c, axis=1)
 
     df = pd.get_dummies(df, columns=["Type"], drop_first=False)
+
     if "Type_L" not in df.columns: df["Type_L"] = 0
     if "Type_M" not in df.columns: df["Type_M"] = 0
 
@@ -142,20 +141,21 @@ def preprocess(df):
 
     return df[EXPECTED_COLUMNS]
 
+# MAIN APP
 if uploaded_file is not None:
     df_raw = pd.read_csv(uploaded_file)
 
-    # Tabs for better navigation
     tab1, tab2, tab3 = st.tabs(["📊 Data Preview", "⚙️ Predictions", "📈 Analytics"])
 
-        with tab1:
+    # TAB 1 — PREVIEW
+    with tab1:
         st.subheader("Uploaded Data Preview")
         st.write(df_raw.head())
 
+    # TAB 2 — PREDICTIONS
     with tab2:
         df_ready = preprocess(df_raw)
 
-        # Predict probabilities
         probs = model.predict_proba(df_ready)[:, 1]
         predictions = (probs >= 0.5).astype(int)
 
@@ -164,7 +164,6 @@ if uploaded_file is not None:
 
         st.subheader("Predictions with Animated Progress Bars")
 
-        # Grid layout: 3 bars per row
         num_cols = 3
         for i in range(0, len(df_raw), num_cols):
             cols = st.columns(num_cols)
@@ -176,16 +175,21 @@ if uploaded_file is not None:
                         st.markdown(f"**Sample {i+j+1}**")
                         st.progress(int(prob * 100))
 
+    # TAB 3 — ANALYTICS
     with tab3:
         st.subheader("Analytics Dashboard")
 
-        # Line charts for key features with theme colors
         color_cycle = ["#00ff99", "#9b59b6", "#3498db"]
-        feature_list = ["Air temperature [K]", "Process temperature [K]",
-                        "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
+        feature_list = [
+            "Air temperature [K]",
+            "Process temperature [K]",
+            "Rotational speed [rpm]",
+            "Torque [Nm]",
+            "Tool wear [min]"
+        ]
 
-        for idx, col in enumerate(feature_list):
-            fig = px.line(df_raw, y=col, title=f"{col} Trend",
+        for idx, col_name in enumerate(feature_list):
+            fig = px.line(df_raw, y=col_name, title=f"{col_name} Trend",
                           markers=True, line_shape="spline",
                           color_discrete_sequence=[color_cycle[idx % len(color_cycle)]])
             fig.update_layout(
@@ -195,21 +199,29 @@ if uploaded_file is not None:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        # Overlay predictions on RPM chart
+        # Overlay predictions
         fig = go.Figure()
-        fig.add_trace(go.Scatter(y=df_raw["Rotational speed [rpm]"],
-                                 mode="lines", name="RPM",
-                                 line=dict(color="#3498db", width=2)))
-        fig.add_trace(go.Scatter(y=df_raw["Failure Probability"],
-                                 mode="lines", name="Failure Probability",
-                                 line=dict(color="#9b59b6", dash="dot")))
-        fig.add_trace(go.Scatter(y=df_raw["Predicted Failure"],
-                                 mode="markers", name="Predicted Failures",
-                                 marker=dict(color="#00ff99", size=8, symbol="x")))
-        fig.update_layout(title="Rotational Speed vs Predicted Failures",
-                          plot_bgcolor="#0e0e0e",
-                          paper_bgcolor="#0e0e0e",
-                          font=dict(color="#e0e0e0"))
+        fig.add_trace(go.Scatter(
+            y=df_raw["Rotational speed [rpm]"],
+            mode="lines", name="RPM",
+            line=dict(color="#3498db", width=2)
+        ))
+        fig.add_trace(go.Scatter(
+            y=df_raw["Failure Probability"],
+            mode="lines", name="Failure Probability",
+            line=dict(color="#9b59b6", dash="dot")
+        ))
+        fig.add_trace(go.Scatter(
+            y=df_raw["Predicted Failure"],
+            mode="markers", name="Predicted Failures",
+            marker=dict(color="#00ff99", size=8, symbol="x")
+        ))
+
+        fig.update_layout(
+            title="Rotational Speed vs Predicted Failures",
+            plot_bgcolor="#0e0e0e",
+            paper_bgcolor="#0e0e0e",
+            font=dict(color="#e0e0e0")
+        )
+
         st.plotly_chart(fig, use_container_width=True)
-
-
