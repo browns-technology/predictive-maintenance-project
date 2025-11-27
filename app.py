@@ -148,4 +148,68 @@ if uploaded_file is not None:
     # Tabs for better navigation
     tab1, tab2, tab3 = st.tabs(["📊 Data Preview", "⚙️ Predictions", "📈 Analytics"])
 
-    with tab1:
+        with tab1:
+        st.subheader("Uploaded Data Preview")
+        st.write(df_raw.head())
+
+    with tab2:
+        df_ready = preprocess(df_raw)
+
+        # Predict probabilities
+        probs = model.predict_proba(df_ready)[:, 1]
+        predictions = (probs >= 0.5).astype(int)
+
+        df_raw["Failure Probability"] = probs
+        df_raw["Predicted Failure"] = predictions
+
+        st.subheader("Predictions with Animated Progress Bars")
+
+        # Grid layout: 3 bars per row
+        num_cols = 3
+        for i in range(0, len(df_raw), num_cols):
+            cols = st.columns(num_cols)
+            for j, col in enumerate(cols):
+                if i + j < len(df_raw):
+                    row = df_raw.iloc[i + j]
+                    prob = row["Failure Probability"]
+                    with col:
+                        st.markdown(f"**Sample {i+j+1}**")
+                        st.progress(int(prob * 100))
+
+    with tab3:
+        st.subheader("Analytics Dashboard")
+
+        # Line charts for key features with theme colors
+        color_cycle = ["#00ff99", "#9b59b6", "#3498db"]
+        feature_list = ["Air temperature [K]", "Process temperature [K]",
+                        "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
+
+        for idx, col in enumerate(feature_list):
+            fig = px.line(df_raw, y=col, title=f"{col} Trend",
+                          markers=True, line_shape="spline",
+                          color_discrete_sequence=[color_cycle[idx % len(color_cycle)]])
+            fig.update_layout(
+                plot_bgcolor="#0e0e0e",
+                paper_bgcolor="#0e0e0e",
+                font=dict(color="#e0e0e0")
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Overlay predictions on RPM chart
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(y=df_raw["Rotational speed [rpm]"],
+                                 mode="lines", name="RPM",
+                                 line=dict(color="#3498db", width=2)))
+        fig.add_trace(go.Scatter(y=df_raw["Failure Probability"],
+                                 mode="lines", name="Failure Probability",
+                                 line=dict(color="#9b59b6", dash="dot")))
+        fig.add_trace(go.Scatter(y=df_raw["Predicted Failure"],
+                                 mode="markers", name="Predicted Failures",
+                                 marker=dict(color="#00ff99", size=8, symbol="x")))
+        fig.update_layout(title="Rotational Speed vs Predicted Failures",
+                          plot_bgcolor="#0e0e0e",
+                          paper_bgcolor="#0e0e0e",
+                          font=dict(color="#e0e0e0"))
+        st.plotly_chart(fig, use_container_width=True)
+
+
