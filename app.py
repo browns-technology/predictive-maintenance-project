@@ -148,4 +148,4 @@ if uploaded_file is not None:
     # Tabs for better navigation
     tab1, tab2, tab3 = st.tabs(["📊 Data Preview", "⚙️ Predictions", "📈 Analytics"])
 
-    with
+    with tab1:
